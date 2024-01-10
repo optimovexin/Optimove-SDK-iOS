@@ -124,6 +124,11 @@ class InAppPresenterTests : XCTestCase {
         appPresenter.userContentController(wKUserContentController, didReceive: wkScriptMessage)
         
         XCTAssertEqual(MockOptimobile.handleActionExpectation.expectedFulfillmentCount, 1)
+        
+        XCTAssertEqual(MockOptimobile.properties?.count, 2)
 
+        XCTAssertEqual(MockOptimobile.properties?["callToActionId"] as? String, "MNiIG_")
+        
+        XCTAssertEqual((MockOptimobile.properties?["optimoveMetricsContext"] as? NSDictionary)?.count, 5)
     }
 }

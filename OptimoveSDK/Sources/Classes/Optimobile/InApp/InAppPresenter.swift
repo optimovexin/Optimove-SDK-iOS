@@ -432,7 +432,7 @@ final class InAppPresenter: NSObject, WKScriptMessageHandler, WKNavigationDelega
     func getOptimoveMetricsContext(callToActionId: String) -> [String:Any]? {
         var optimoveMetricsContext = currentMessage?.data![OPTIMOVE_METRICS_CONTEXT] as? [String:Any]
         if (optimoveMetricsContext != nil){
-            optimoveMetricsContext?.updateValue("callToActionId", forKey: callToActionId)
+            optimoveMetricsContext?.updateValue(callToActionId, forKey: "callToActionId")
         }
         return optimoveMetricsContext;
     }

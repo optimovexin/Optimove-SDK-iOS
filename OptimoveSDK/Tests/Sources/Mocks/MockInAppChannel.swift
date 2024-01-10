@@ -8,7 +8,6 @@ import XCTest
 let path = "/dev/null"
 
 class MockPersistentContainer: NSPersistentContainer {
-    
     static func mockContainer(tenant: Int) -> NSPersistentContainer {
         let container = PersistentContainer(storeType: PersistentContainer.PersistentStoreType.inMemory)
         do {
@@ -45,8 +44,6 @@ class MockInAppMessageEntity {
         self.sentAt = sentAt
     }
 }
-
-
 
 class MockInAppMessage:  NSObject , InAppMessageProtocol {
     typealias T = MockInAppMessageEntity
@@ -100,6 +97,8 @@ class MockOptimobile : IOptimobile {
     static var handleActionExpectation: XCTestExpectation! = XCTestExpectation.init()
     
     fileprivate static var instance: IOptimobile?
+    
+    static var properties: [String: Any]?
 
     init(handleActionExpectation: XCTestExpectation!, handled: Bool = false, notificationCenter: Any? = nil, pushNotificationDeviceType: Int, pushNotificationProductionTokenType: Int, inAppConsentStrategy: InAppConsentStrategy, inAppManager: InAppManager, config: OptimobileConfig, analyticsHelper: AnalyticsHelper, deepLinkHelper: DeepLinkHelper? = nil) {
         self.handled = handled
@@ -127,11 +126,12 @@ class MockOptimobile : IOptimobile {
     
     static func trackEventImmediately(eventType: String, properties: [String: Any]?)
     {
+        MockOptimobile.properties = properties
         MockOptimobile.handleActionExpectation.fulfill()
     }
     static func pushRequestDeviceToken()
     {
-        
+        return
     }
     func pushHandleDismissed(withUserInfo: [AnyHashable: Any]?, response: UNNotificationResponse?) -> Bool
     {

@@ -12,9 +12,15 @@ enum InAppAction: String {
     case OPEN_URL = "openUrl"
     case DEEP_LINK = "deepLink"
     case REQUEST_RATING = "requestAppStoreRating"
+    case Click = "click"
 }
 
+let OPTIMOVE_METRICS_CONTEXT = "optimoveMetricsContext";
+
 final class InAppPresenter: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
+    
+    private var optimobile: IOptimobile.Type!
+    
     private let messageQueueLock = DispatchSemaphore(value: 1)
 
     private var webView: WKWebView?
@@ -29,7 +35,7 @@ final class InAppPresenter: NSObject, WKScriptMessageHandler, WKNavigationDelega
     private var pendingTickleIds: NSMutableOrderedSet
 
     private var displayMode: InAppDisplayMode
-    private var currentMessage: InAppMessage?
+    private var currentMessage: (any InAppMessageProtocol)?
 
     let urlBuilder: UrlBuilder
 
@@ -42,6 +48,10 @@ final class InAppPresenter: NSObject, WKScriptMessageHandler, WKNavigationDelega
         self.urlBuilder = urlBuilder
 
         super.init()
+    }
+    
+    func setOptimobile(_ lib: IOptimobile.Type) {
+        self.optimobile = lib
     }
 
     func setDisplayMode(_ mode: InAppDisplayMode) {
@@ -66,7 +76,7 @@ final class InAppPresenter: NSObject, WKScriptMessageHandler, WKNavigationDelega
         return mode
     }
 
-    func queueMessagesForPresentation(messages: [InAppMessage], tickleIds: NSOrderedSet) {
+    func queueMessagesForPresentation(messages: [any InAppMessageProtocol], tickleIds: NSOrderedSet) {
         messageQueueLock.wait()
 
         if messages.count == 0 && messageQueue.count == 0 {
@@ -146,7 +156,7 @@ final class InAppPresenter: NSObject, WKScriptMessageHandler, WKNavigationDelega
             return
         }
 
-        currentMessage = (messageQueue[0] as! InAppMessage)
+        currentMessage = (messageQueue[0] as! any InAppMessageProtocol)
 
         var ready = false
 
@@ -161,7 +171,7 @@ final class InAppPresenter: NSObject, WKScriptMessageHandler, WKNavigationDelega
         }
 
         let content = NSMutableDictionary(dictionary: currentMessage!.content)
-        content["region"] = Optimobile.sharedInstance.config.region.rawValue
+        content["region"] = self.optimobile.sharedInstance.config.region.rawValue
 
         postClientMessage(type: "PRESENT_MESSAGE", data: content)
     }
@@ -359,7 +369,7 @@ final class InAppPresenter: NSObject, WKScriptMessageHandler, WKNavigationDelega
             presentFromQueue()
         } else if type == "MESSAGE_OPENED" {
             loadingSpinner?.stopAnimating()
-            Optimobile.sharedInstance.inAppManager.handleMessageOpened(message: currentMessage!)
+            self.optimobile.sharedInstance.inAppManager.handleMessageOpened(message: currentMessage! as! InAppMessage)
         } else if type == "MESSAGE_CLOSED" {
             handleMessageClosed()
         } else if type == "EXECUTE_ACTIONS" {
@@ -369,11 +379,20 @@ final class InAppPresenter: NSObject, WKScriptMessageHandler, WKNavigationDelega
             else {
                 return
             }
-            handleActions(actions: actions)
+
+            let callToActionId = data["callToActionId"] as? String ?? ""
+            if (!callToActionId.isEmpty) {
+                let optimoveMetricsContext = getOptimoveMetricsContext(callToActionId: callToActionId)
+                handleActions(optimoveMetricsContext: optimoveMetricsContext);
+                
+            } else {
+                handleActions(actions: actions);
+            }
         } else {
             print("Unknown message: \(message.body)")
         }
     }
+
 
     func webView(_: WKWebView, didFinish _: WKNavigation!) {
         // Noop
@@ -409,6 +428,20 @@ final class InAppPresenter: NSObject, WKScriptMessageHandler, WKNavigationDelega
         cancelCurrentPresentationQueue(waitForViewCleanup: false)
     }
 
+    
+    func getOptimoveMetricsContext(callToActionId: String) -> [String:Any]? {
+        var optimoveMetricsContext = currentMessage?.data![OPTIMOVE_METRICS_CONTEXT] as? [String:Any]
+        if (optimoveMetricsContext != nil){
+            optimoveMetricsContext?.updateValue("callToActionId", forKey: callToActionId)
+        }
+        return optimoveMetricsContext;
+    }
+
+
+    func handleActions(optimoveMetricsContext: [String:Any]?) {
+        self.optimobile.trackEventImmediately(eventType: InAppAction.Click.rawValue, properties: optimoveMetricsContext)
+    }
+
     func handleActions(actions: [NSDictionary]) {
         if let message = currentMessage {
             var hasClose = false
@@ -432,16 +465,16 @@ final class InAppPresenter: NSObject, WKScriptMessageHandler, WKNavigationDelega
             }
 
             if hasClose {
-                Optimobile.sharedInstance.inAppManager.markMessageDismissed(message: message)
+                self.optimobile.sharedInstance.inAppManager.markMessageDismissed(message: message as! InAppMessage)
                 postClientMessage(type: "CLOSE_MESSAGE", data: nil)
             }
 
             if let conversionEvent = conversionEvent {
-                Optimobile.trackEventImmediately(eventType: conversionEvent, properties: conversionEventData)
+                self.optimobile.trackEventImmediately(eventType: conversionEvent, properties: conversionEventData)
             }
 
             if userAction != nil {
-                handleUserAction(message: message, userAction: userAction!)
+                handleUserAction(message: message as! InAppMessage, userAction: userAction!)
                 cancelCurrentPresentationQueue(waitForViewCleanup: true)
             }
         }
@@ -451,15 +484,15 @@ final class InAppPresenter: NSObject, WKScriptMessageHandler, WKNavigationDelega
         let type = userAction["type"] as! String
 
         if type == InAppAction.PROMPT_PUSH_PERMISSION.rawValue {
-            Optimobile.pushRequestDeviceToken()
+            self.optimobile.pushRequestDeviceToken()
         } else if type == InAppAction.DEEP_LINK.rawValue {
-            if Optimobile.sharedInstance.config.inAppDeepLinkHandlerBlock == nil {
+            if self.optimobile.sharedInstance.config.inAppDeepLinkHandlerBlock == nil {
                 return
             }
             DispatchQueue.main.async {
                 let data = userAction.value(forKeyPath: "data.deepLink") as? [AnyHashable: Any] ?? [:]
                 let buttonPress = InAppButtonPress(deepLinkData: data, messageId: message.id, messageData: message.data)
-                Optimobile.sharedInstance.config.inAppDeepLinkHandlerBlock?(buttonPress)
+                self.optimobile.sharedInstance.config.inAppDeepLinkHandlerBlock?(buttonPress)
             }
         } else if type == InAppAction.OPEN_URL.rawValue {
             guard let url = URL(string: userAction.value(forKeyPath: "data.url") as! String) else {
@@ -492,3 +525,5 @@ final class InAppPresenter: NSObject, WKScriptMessageHandler, WKNavigationDelega
         }
     }
 }
+
+

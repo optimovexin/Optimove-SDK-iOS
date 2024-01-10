@@ -458,7 +458,7 @@ class PushHelper {
         if #available(iOS 10, *) {
             let delegate = OptimoveUserNotificationCenterDelegate()
 
-            Optimobile.sharedInstance.notificationCenter = delegate
+            Optimobile.sharedInstance.updateNotificationCenter(with: delegate)
             UNUserNotificationCenter.current().delegate = delegate
         }
     }()

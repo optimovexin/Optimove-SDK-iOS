@@ -38,7 +38,8 @@ class InAppMessageEntity: NSManagedObject {
     }
 }
 
-class InAppMessage: NSObject {
+class InAppMessage:  NSObject , InAppMessageProtocol {
+    typealias T = InAppMessageEntity
     public internal(set) var id: Int64
     public internal(set) var updatedAt: NSDate
     public internal(set) var content: NSDictionary
@@ -49,7 +50,7 @@ class InAppMessage: NSObject {
     public internal(set) var readAt: NSDate?
     public internal(set) var sentAt: NSDate?
 
-    init(entity: InAppMessageEntity) {
+    required init(entity: InAppMessageEntity) {
         id = Int64(entity.id)
         updatedAt = entity.updatedAt.copy() as! NSDate
         content = entity.content.copy() as! NSDictionary
@@ -72,6 +73,24 @@ class InAppMessage: NSObject {
     override var hash: Int {
         id.hashValue
     }
+}
+
+
+protocol InAppMessageProtocol<T> {
+    associatedtype T
+    var id: Int64 { get }
+    var updatedAt: NSDate { get }
+    var content: NSDictionary { get }
+    var data: NSDictionary? { get  }
+    var badgeConfig: NSDictionary? { get }
+    var inboxConfig: NSDictionary? { get }
+    var dismissedAt: NSDate? { get }
+    var readAt: NSDate? { get }
+    var sentAt: NSDate? { get }
+    init(entity: T)
+    func isEqual(_ object: Any?) -> Bool
+    var hash: Int {get}
+    
 }
 
 public struct InAppButtonPress {

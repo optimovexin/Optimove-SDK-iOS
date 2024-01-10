@@ -37,6 +37,7 @@ class InAppManager {
     init(_ config: OptimobileConfig, httpClient: KSHttpClient, urlBuilder: UrlBuilder) {
         self.httpClient = httpClient
         presenter = InAppPresenter(displayMode: config.inAppDefaultDisplayMode, urlBuilder: urlBuilder)
+        presenter.setOptimobile(Optimobile.self)
         syncQueue = DispatchQueue(label: "com.optimove.inapp.sync")
 
         finishedInitializationToken = NotificationCenter.default

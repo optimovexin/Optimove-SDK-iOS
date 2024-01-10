@@ -20,6 +20,9 @@ public enum InAppDisplayMode: String {
     case paused
 }
 
+
+
+
 // MARK: class
 
 final class Optimobile {
@@ -40,7 +43,7 @@ final class Optimobile {
         }
     }
 
-    let pushNotificationDeviceType = 1
+    let pushNotificationDeviceType: Int = 1
     let pushNotificationProductionTokenType: Int = 1
 
     let sdkType: Int = 101
@@ -48,8 +51,14 @@ final class Optimobile {
     fileprivate static var instance: Optimobile?
 
     var notificationCenter: Any?
+    
+    // Method to update notificationCenter
+   func updateNotificationCenter(with notificationCenter: Any?) {
+        self.notificationCenter = notificationCenter
+    }
 
-    static var sharedInstance: Optimobile {
+
+    static var sharedInstance: IOptimobile {
         if isInitialized() == false {
             assertionFailure("The OptimobileSDK has not been initialized")
         }
@@ -57,7 +66,7 @@ final class Optimobile {
         return instance!
     }
 
-    static func getInstance() -> Optimobile {
+    static func getInstance() -> IOptimobile {
         return sharedInstance
     }
 
@@ -232,3 +241,25 @@ final class Optimobile {
         deepLinkHelper?.checkForNonContinuationLinkMatch()
     }
 }
+
+protocol IOptimobile {
+    static var sharedInstance: IOptimobile { get }
+    static func getInstance() -> IOptimobile
+    static func trackEventImmediately(eventType: String, properties: [String: Any]?)
+    static func pushRequestDeviceToken()
+    var inAppConsentStrategy: InAppConsentStrategy { get }
+    var inAppManager: InAppManager{ get }
+    var config: OptimobileConfig {get}
+    var analyticsHelper: AnalyticsHelper {get}
+    var pushNotificationDeviceType :Int {get}
+    var pushNotificationProductionTokenType: Int {get}
+    var deepLinkHelper: DeepLinkHelper? {get}
+    func pushHandleDismissed(withUserInfo: [AnyHashable: Any]?, response: UNNotificationResponse?) -> Bool 
+    @available(iOS 10.0, *)
+    func pushHandleOpen(withUserInfo: [AnyHashable: Any]?, response: UNNotificationResponse?) -> Bool
+    func updateNotificationCenter(with notificationCenter: Any?) 
+}
+
+
+
+extension Optimobile: IOptimobile { }
